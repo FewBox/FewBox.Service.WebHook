@@ -44,7 +44,7 @@ namespace FewBox.Service.WebHook
         public void ConfigureServices(IServiceCollection services)
         {
             RestfulUtility.IsCertificateNeedValidate = false;
-            RestfulUtility.IsLogging = true; // Todo: Need to remove.
+            // RestfulUtility.IsLogging = true; // Todo: Need to remove.
             JsonUtility.IsCamelCase = true;
             JsonUtility.IsNullIgnore = true;
             services.AddMvc(options=>{

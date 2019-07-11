@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using FewBox.Core.Utility.Formatter;
 using FewBox.Core.Utility.Net;
 using FewBox.Core.Web.Dto;
 using FewBox.Core.Web.Filter;
 using FewBox.Service.WebHook.Model.Configs;
 using FewBox.Service.WebHook.Model.Dtos;
+using FewBox.Service.WebHook.Model.Services;
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -22,7 +24,7 @@ namespace FewBox.Service.WebHook.Controllers
         }
 
         [HttpPost("dockerhub")]
-        [Trace]
+        //[Trace]
         public MetaResponseDto DockerHub([FromBody]DockerHubWebHookDto dockerHubWebHookDto)
         {
             var factory = new ConnectionFactory() { HostName = this.RabbitMQConfig.HostName };
@@ -35,11 +37,14 @@ namespace FewBox.Service.WebHook.Controllers
                                      autoDelete: false,
                                      arguments: null);
 
-                string message = "Hello World!";
+                string message = JsonUtility.Serialize<DockerHubMessage>(new DockerHubMessage{
+                    RepositoryName = dockerHubWebHookDto.Repository.Repo_Name,
+                    Tag = dockerHubWebHookDto.Push_Data.Tag
+                });
                 var body = Encoding.UTF8.GetBytes(message);
 
                 channel.BasicPublish(exchange: "",
-                                     routingKey: "hello",
+                                     routingKey: this.RabbitMQConfig.Queue,
                                      basicProperties: null,
                                      body: body);
             }
@@ -69,17 +74,15 @@ namespace FewBox.Service.WebHook.Controllers
                                      arguments: null);
 
                 var consumer = new EventingBasicConsumer(channel);
-                consumer.Received += (model, ea) =>
+                consumer.Received += (model, deliverEventArgs) =>
                 {
-                    var body = ea.Body;
+                    var body = deliverEventArgs.Body;
                     var message = Encoding.UTF8.GetString(body);
-                    Console.WriteLine(" [x] Received {0}", message);
+                    Console.WriteLine(" [x] Received {0}", message); // Todo: Need to implement in listener.
                 };
                 channel.BasicConsume(queue: this.RabbitMQConfig.Queue,
                                      autoAck: true,
                                      consumer: consumer);
-
-                Console.WriteLine(" Press [enter] to exit.");
                 Console.ReadLine();
             }
             return new MetaResponseDto();
